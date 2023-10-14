@@ -1,9 +1,15 @@
 import pandas as pd
 import random
 import sqlite3
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+import time
+
+start_time = time.time()
 
 def table_exists(table_name, cursor):
     cursor.execute(f'''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = '{table_name}' ''')
@@ -99,6 +105,21 @@ def insert_occupancy_data(df):
     df.to_sql('ocupacion_data', conn, if_exists='replace', index=False)
     conn.close()
 
+def visualize_data(df):
+    plt.figure(figsize=(10,6))
+    plt.hist(df['Ocupacion'], bins=20, color='blue', alpha=0.7)
+    plt.title('Distribución de Ocupación')
+    plt.xlabel('Ocupación')
+    plt.ylabel('Frecuencia')
+    plt.show()
+
+    plt.figure(figsize=(10,6))
+    plt.scatter(df['Hora'], df['Ocupacion'], alpha=0.5)
+    plt.title('Ocupación por Hora del Día')
+    plt.xlabel('Hora')
+    plt.ylabel('Ocupación')
+    plt.show()
+
 setup_database()
 insert_random_data()
 
@@ -109,15 +130,27 @@ data = {
 }
 df = pd.DataFrame(data)
 insert_occupancy_data(df)
+visualize_data(df)  # Visualizar datos
 
+# Preparar datos para entrenamiento
 X = df[['Hora', 'Dia']]
 y = df['Ocupacion']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-model = DecisionTreeRegressor()
-model.fit(X_train, y_train)
+# Entrenar varios modelos y comparar
+models = {
+    'DecisionTree': DecisionTreeRegressor(),
+    'RandomForest': RandomForestRegressor(),
+    'LinearRegression': LinearRegression()
+}
 
-y_pred = model.predict(X_test)
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    print(f"Error Cuadrático Medio para {name}: {mse}")
+    
+    end_time = time.time()
 
-mse = mean_squared_error(y_test, y_pred)
-print(f"Error Cuadrático Medio: {mse}")
+elapsed_time = end_time - start_time
+print(f"El tiempo de ejecución fue: {elapsed_time} segundos")
